@@ -40,7 +40,7 @@ struct ModalData {
   std::string modality = "image";
 
   ModalData() = default;
-  ModalData(DataBuffer data, std::string modality)
+  ModalData(DataBuffer data, std::string modality = "image")
       : data(std::move(data)), modality(std::move(modality)) {}
 
   // TODO: This is not correct! Currently it will just serialize data as a list
@@ -118,6 +118,22 @@ struct Tool {
   NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(Tool, type, function)
 };
 
+/*-- Documents --*/
+
+/**
+ * A document represents a text document for a RAG request
+ */
+struct Document {
+  std::string title;
+  std::string text;
+
+  Document() = default;
+  Document(std::string title, std::string text)
+      : title(std::move(title)), text(std::move(text)) {}
+
+  NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(Document, title, text)
+};
+
 /*-- Chat --*/
 
 /**
@@ -127,16 +143,40 @@ struct Message {
   std::string role;
   std::string content;
   std::vector<ModalData> data_objects;
-  std::vector<Tool> tools;
 
   Message() = default;
   Message(std::string role, std::string content,
-          std::vector<ModalData> data_objects, std::vector<Tool> tools)
+          std::vector<ModalData> data_objects)
       : role(std::move(role)), content(std::move(content)),
-        data_objects(std::move(data_objects)), tools(std::move(tools)) {}
+        data_objects(std::move(data_objects)) {}
 
   NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(Message, role, content,
-                                              data_objects, tools)
+                                              data_objects)
+};
+
+/**
+ * A full chat request message
+ */
+struct ChatRequest {
+  std::vector<Message> messages;
+  std::vector<Tool> tools;
+  std::vector<Document> documents;
+
+  /**
+   * Plugins are an arbitrary key/value object that the template expander can
+   * do anything with. This allows model-specific special prompt structure that
+   * is not part of standard template keys.
+   */
+  nlohmann::json plugins;
+
+  ChatRequest() = default;
+  ChatRequest(std::vector<Message> messages, std::vector<Tool> tools,
+              std::vector<Document> documents, nlohmann::json plugins)
+      : messages(std::move(messages)), tools(std::move(tools)),
+        documents(std::move(documents)), plugins(std::move(plugins)) {}
+
+  NLOHMANN_DEFINE_TYPE_INTRUSIVE_WITH_DEFAULT(ChatRequest, messages, tools,
+                                              documents, plugins)
 };
 
 } // namespace tokenizers

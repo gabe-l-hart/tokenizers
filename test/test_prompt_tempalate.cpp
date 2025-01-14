@@ -43,14 +43,7 @@ TEST_F(TypesTest, MessageToFromJson) {
                        {
                            {{1, 2, 3}, "image"},
                            {{4, 5, 6}, "book"},
-                       },
-                       {{{"add",
-                          "Add some things together",
-                          {
-                              {{"arg1", {"number", "the first arg", {}}},
-                               {"arg2", {"number", "the second arg", {}}}},
-                              {"arg1", "arg2"},
-                          }}}}};
+                       }};
 
   // serialization -> json
   json j = message_data;
@@ -60,6 +53,42 @@ TEST_F(TypesTest, MessageToFromJson) {
   // TODO: Test base64 serialization for data
   EXPECT_EQ(j["data_objects"][0]["modality"], "image");
   EXPECT_EQ(j["data_objects"][1]["modality"], "book");
+
+  // deserialization -> Message
+  Message message_from_json = j;
+  EXPECT_EQ(message_from_json.role, "custom-role");
+  EXPECT_EQ(message_from_json.content, "This is a test!");
+  EXPECT_EQ(message_from_json.data_objects.size(), 2);
+  // TODO: Test base64 serialization for data
+  EXPECT_EQ(message_from_json.data_objects[0].modality, "image");
+  EXPECT_EQ(message_from_json.data_objects[1].modality, "book");
+}
+
+TEST_F(TypesTest, ChatRequestToFromJson) {
+  // Construct with everything filled in
+  ChatRequest chat{
+      {
+          Message{"system", "You are a helpful AI assistant", {}},
+          Message{"user",
+                  "Tell me everything these documents know about the world",
+                  {{{1, 2, 3}}}},
+      },
+      {Tool{{"add",
+             "Add some things together",
+             {
+                 {{"arg1", {"number", "the first arg", {}}},
+                  {"arg2", {"number", "the second arg", {}}}},
+                 {"arg1", "arg2"},
+             }}}},
+      {
+          Document{"My doc", "The quick brown fox jumped over the lazy dog"},
+          Document{"Another doc", "Hello\nWorld!"},
+      },
+      R"({"controls": {"length": "short"}, "foo": {"bar": "baz"}})"_json};
+
+  // serialization -> json
+  json j = chat;
+  EXPECT_EQ(j["messages"].size(), 2);
   EXPECT_EQ(j["tools"].size(), 1);
   EXPECT_EQ(j["tools"][0]["type"], "function");
   EXPECT_EQ(j["tools"][0]["function"]["name"], "add");
@@ -78,34 +107,10 @@ TEST_F(TypesTest, MessageToFromJson) {
   EXPECT_EQ(j["tools"][0]["function"]["parameters"]["properties"]["arg2"]
              ["description"],
             "the second arg");
+  EXPECT_EQ(j["plugins"].size(), 2);
+  EXPECT_EQ(j["plugins"], chat.plugins);
 
   // deserialization -> Message
-  Message message_from_json = j;
-  EXPECT_EQ(message_from_json.role, "custom-role");
-  EXPECT_EQ(message_from_json.content, "This is a test!");
-  EXPECT_EQ(message_from_json.data_objects.size(), 2);
-  // TODO: Test base64 serialization for data
-  EXPECT_EQ(message_from_json.data_objects[0].modality, "image");
-  EXPECT_EQ(message_from_json.data_objects[1].modality, "book");
-  EXPECT_EQ(message_from_json.tools.size(), 1);
-  EXPECT_EQ(message_from_json.tools[0].type, "function");
-  EXPECT_EQ(message_from_json.tools[0].function.name, "add");
-  EXPECT_EQ(message_from_json.tools[0].function.description,
-            "Add some things together");
-  EXPECT_EQ(message_from_json.tools[0].function.parameters.properties.size(),
-            2);
-  EXPECT_EQ(
-      message_from_json.tools[0].function.parameters.properties["arg1"].type,
-      "number");
-  EXPECT_EQ(message_from_json.tools[0]
-                .function.parameters.properties["arg1"]
-                .description,
-            "the first arg");
-  EXPECT_EQ(
-      message_from_json.tools[0].function.parameters.properties["arg2"].type,
-      "number");
-  EXPECT_EQ(message_from_json.tools[0]
-                .function.parameters.properties["arg2"]
-                .description,
-            "the second arg");
+  ChatRequest chat_from_json = j;
+  EXPECT_EQ(json(chat_from_json), j);
 }
